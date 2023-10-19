@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-CODE = avrora tests
+CODE = avrora tests benches
 POETRY_RUN = poetry run
 TEST = $(POETRY_RUN) pytest $(args)
 
@@ -77,5 +77,5 @@ clean:  ## Clean
 	rm -rf htmlcov || true
 
 .PHONY: bench
-bench:  ## Bump version (commit and tag)
-	$(POETRY_RUN) python -m benches.main
+benchmark:  ## Benchmark
+	$(TEST) benches

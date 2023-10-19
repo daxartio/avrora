@@ -63,13 +63,13 @@ pytest-cov = "^4.0.0"
 pytest-deadfixtures = "^2.2.1"
 pytest-mock = "^3.10.0"
 ruff = "^0.0.282"
+pytest-benchmark = "^4.0.0"
 
 [tool.poetry.group.git.dependencies]
 commitizen = "^3.5.3"
 
 [tool.poetry.group.benchmark.dependencies]
 avro = "^1.11.2"
-plotly = "^5.16.0"
 fastavro = {version = "^1.8.2", python = "3.11"}
 
 [tool.mypy]

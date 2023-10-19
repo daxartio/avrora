@@ -1,16 +1,11 @@
 import io
-from timeit import timeit
+from typing import Any
 
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
 from fastavro import reader
 
 from avrora._avrora import parse
-
-try:
-    import plotly.graph_objects as go
-except ImportError:
-    go = None
 
 raw_schema = """
 {
@@ -38,20 +33,24 @@ data = bytes([
 ])
 # fmt: on
 
+
 def avro_parse(d):
     avro_reader = DataFileReader(io.BytesIO(d), DatumReader())
     return next(avro_reader)
+
 
 def fastavro_parse(d):
     avro_reader = reader(io.BytesIO(d))
     return next(avro_reader)
 
-number = 1000
 
-results = [
-    timeit(lambda: avro_parse(data), number=number),
-    timeit(lambda: parse(data), number=number),
-    timeit(lambda: fastavro_parse(data), number=number),
-]
+def test_avrora(benchmark: Any) -> None:
+    benchmark(parse, data)
 
-print(results)
+
+def test_avro(benchmark: Any) -> None:
+    benchmark(avro_parse, data)
+
+
+def test_fastavro(benchmark: Any) -> None:
+    benchmark(fastavro_parse, data)
