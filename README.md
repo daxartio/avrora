@@ -7,6 +7,8 @@
 
 ## Installation
 
+WIP
+
 ```
 pip install avrora
 ```

@@ -75,3 +75,7 @@ clean:  ## Clean
 	rm -rf site || true
 	rm -rf dist || true
 	rm -rf htmlcov || true
+
+.PHONY: bench
+bench:  ## Bump version (commit and tag)
+	$(POETRY_RUN) python -m benches.main

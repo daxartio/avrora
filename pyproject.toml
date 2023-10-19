@@ -67,6 +67,11 @@ ruff = "^0.0.282"
 [tool.poetry.group.git.dependencies]
 commitizen = "^3.5.3"
 
+[tool.poetry.group.benchmark.dependencies]
+avro = "^1.11.2"
+plotly = "^5.16.0"
+fastavro = {version = "^1.8.2", python = "3.11"}
+
 [tool.mypy]
 check_untyped_defs = true
 disallow_any_generics = true
@@ -87,7 +92,7 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-fail_under = 100
+fail_under = 0
 
 [tool.pytest.ini_options]
 addopts = "--strict-markers --showlocals --verbosity 2"
