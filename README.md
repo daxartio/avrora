@@ -5,13 +5,7 @@
 <!-- [![GitHub last commit](https://img.shields.io/github/last-commit/daxartio/avrora)](https://github.com/daxartio/avrora) -->
 <!-- [![GitHub stars](https://img.shields.io/github/stars/daxartio/avrora?style=social)](https://github.com/daxartio/avrora) -->
 
-## Installation
-
 WIP
-
-```
-pip install avrora
-```
 
 ## Benches
 
