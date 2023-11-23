@@ -1,11 +1,11 @@
 import io
+import json
 from typing import Any
 
+import avrora
+import fastavro
 from avro.datafile import DataFileReader
 from avro.io import DatumReader
-from fastavro import reader
-
-from avrora._avrora import parse
 
 raw_schema = """
 {
@@ -17,6 +17,8 @@ raw_schema = """
     ]
 }
 """
+
+
 # fmt: off
 data = bytes([
     79, 98, 106, 1, 4, 22, 97, 118, 114, 111, 46, 115, 99, 104, 101, 109, 97, 222, 1, 123,
@@ -34,18 +36,37 @@ data = bytes([
 # fmt: on
 
 
+def avrora_parse(parser, d):
+    return parser.parse(d)
+
+
+def avrora_parse_with_schema(parser, d):
+    return parser.parse(d)
+
+
 def avro_parse(d):
     avro_reader = DataFileReader(io.BytesIO(d), DatumReader())
     return next(avro_reader)
 
 
 def fastavro_parse(d):
-    avro_reader = reader(io.BytesIO(d))
+    avro_reader = fastavro.reader(io.BytesIO(d))
+    return next(avro_reader)
+
+
+def fastavro_parse_with_schema(d, schema):
+    avro_reader = fastavro.reader(io.BytesIO(d), schema)
     return next(avro_reader)
 
 
 def test_avrora(benchmark: Any) -> None:
-    benchmark(parse, data)
+    parser = avrora.Avro()
+    benchmark(avrora_parse, parser, data)
+
+
+def test_avrora_with_schema(benchmark: Any) -> None:
+    parser = avrora.Avro.with_schema(raw_schema)
+    benchmark(avrora_parse_with_schema, parser, data)
 
 
 def test_avro(benchmark: Any) -> None:
@@ -54,3 +75,8 @@ def test_avro(benchmark: Any) -> None:
 
 def test_fastavro(benchmark: Any) -> None:
     benchmark(fastavro_parse, data)
+
+
+def test_fastavro_with_schema(benchmark: Any) -> None:
+    schema = fastavro.parse_schema(json.loads(raw_schema))
+    benchmark(fastavro_parse_with_schema, data, schema)

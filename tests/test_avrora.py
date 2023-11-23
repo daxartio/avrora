@@ -29,7 +29,6 @@ def test_idle():
         201, 133, 2, 99, 244, 227, 0,
     ])
     # fmt: on
-    avro = Avro(schema)
-    avro.parse(data)
-    avro = Avro(schema)
-    avro.parse(data)
+    avro = Avro.with_schema(schema)
+    result = avro.parse(data)
+    print(result)

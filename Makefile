@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 CODE = avrora tests benches
 POETRY_RUN = poetry run
-TEST = $(POETRY_RUN) pytest $(args)
+TEST = $(POETRY_RUN) pytest tests $(args)
 
 .PHONY: help
 help: ## Show help
@@ -28,7 +28,7 @@ publish:  ## Publish package
 
 .PHONY: build-rs
 build-rs:  ## Build .so files
-	$(POETRY_RUN) maturin develop
+	$(POETRY_RUN) maturin develop -r
 
 .PHONY: format-rs
 format-rs:  ## Formatting rs code

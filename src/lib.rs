@@ -1,46 +1,105 @@
+use apache_avro::types::Value;
 use apache_avro::Reader;
 use apache_avro::Schema;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use pyo3::types::PyList;
+use pyo3::types::PyType;
+
+fn to_pyobject(py: Python, datum: Value) -> PyResult<PyObject> {
+    match datum {
+        Value::Null => Ok(py.None()),
+        Value::Boolean(b) => Ok(b.into_py(py)),
+        Value::Int(n) => Ok(n.into_py(py)),
+        Value::Long(n) => Ok(n.into_py(py)),
+        Value::Float(x) => Ok(x.into_py(py)),
+        Value::Double(x) => Ok(x.into_py(py)),
+        Value::Bytes(bytes) => Ok(bytes.into_py(py)),
+        Value::String(string) => Ok(string.into_py(py)),
+        Value::Fixed(_, bytes) => Ok(bytes.into_py(py)),
+        Value::Enum(_, symbol) => Ok(symbol.into_py(py)),
+        Value::Union(_, item) => to_pyobject(py, *item),
+        Value::Array(items) => {
+            let list = PyList::empty(py);
+            for item in items {
+                list.append(to_pyobject(py, item)?)?;
+            }
+            Ok(list.into_py(py))
+        }
+        Value::Map(items) => {
+            let dict = PyDict::new(py);
+            for (key, value) in items {
+                dict.set_item(key, to_pyobject(py, value)?)?;
+            }
+            Ok(dict.into_py(py))
+        }
+        Value::Record(fields) => {
+            let dict = PyDict::new(py);
+            for (name, value) in fields {
+                dict.set_item(name, to_pyobject(py, value)?)?;
+            }
+            Ok(dict.into_py(py))
+        }
+        Value::Date(_) => todo!(),
+        Value::Decimal(_) => todo!(),
+        Value::TimeMillis(_) => todo!(),
+        Value::TimeMicros(_) => todo!(),
+        Value::TimestampMillis(_) => todo!(),
+        Value::TimestampMicros(_) => todo!(),
+        Value::LocalTimestampMillis(_) => todo!(),
+        Value::LocalTimestampMicros(_) => todo!(),
+        Value::Duration(_) => todo!(),
+        Value::Uuid(_) => todo!(),
+    }
+}
 
 #[pyclass]
 struct Avro {
-    schema: Schema,
+    schema: Option<Schema>,
 }
 
 #[pymethods]
 impl Avro {
     #[new]
-    fn parse_schema(raw_schema: &str) -> PyResult<Self> {
+    fn new() -> Self {
+        Avro { schema: None }
+    }
+
+    #[classmethod]
+    fn with_schema(_cls: &PyType, raw_schema: &str) -> PyResult<Self> {
         let Ok(schema) = Schema::parse_str(raw_schema) else {
             return Err(PyValueError::new_err("Invalid schema"));
         };
-        Ok(Avro { schema })
+        Ok(Avro {
+            schema: Some(schema),
+        })
     }
 
-    pub fn parse(&self, input: &[u8]) -> PyResult<String> {
-        let reader = Reader::with_schema(&self.schema, &input[..]).unwrap();
-        for record in reader {
-            return Ok(format!("{:?}", record.unwrap()).to_string());
+    pub fn parse(&self, py: Python, input: &[u8]) -> PyResult<Vec<PyObject>> {
+        let reader = if let Some(ref schema) = self.schema {
+            Reader::with_schema(schema, input)
+        } else {
+            Reader::new(input)
+        };
+
+        if reader.is_err() {
+            return Err(PyValueError::new_err("Error"));
         }
-        Err(PyValueError::new_err("Empty reader"))
-    }
-}
 
-#[pyfunction]
-fn parse(input: &[u8]) -> PyResult<String> {
-    let reader = Reader::new(&input[..]).unwrap();
-    for record in reader {
-        return Ok(format!("{:?}", record.unwrap()));
+        let res = reader
+            .unwrap()
+            .into_iter()
+            .map(|read| to_pyobject(py, read.unwrap()).unwrap())
+            .collect::<Vec<PyObject>>();
+        Ok(res)
     }
-    Err(PyValueError::new_err("Empty reader"))
 }
 
 /// avrora package.
 #[pymodule]
 fn _avrora(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Avro>()?;
-    m.add_function(wrap_pyfunction!(parse, m)?)?;
     Ok(())
 }
 
