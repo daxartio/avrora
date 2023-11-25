@@ -3,6 +3,7 @@ use apache_avro::Reader;
 use apache_avro::Schema;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::PyDelta;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyType;
@@ -41,16 +42,19 @@ fn to_pyobject(py: Python, datum: Value) -> PyResult<PyObject> {
             }
             Ok(dict.into_py(py))
         }
-        Value::Date(_) => todo!(),
+        Value::Date(date) => Ok(date.into_py(py)),
+        Value::TimeMillis(n) => Ok(n.into_py(py)),
+        Value::TimeMicros(n) => Ok(n.into_py(py)),
+        Value::TimestampMillis(n) => Ok(n.into_py(py)),
+        Value::TimestampMicros(n) => Ok(n.into_py(py)),
+        Value::LocalTimestampMillis(n) => Ok(n.into_py(py)),
+        Value::LocalTimestampMicros(n) => Ok(n.into_py(py)),
         Value::Decimal(_) => todo!(),
-        Value::TimeMillis(_) => todo!(),
-        Value::TimeMicros(_) => todo!(),
-        Value::TimestampMillis(_) => todo!(),
-        Value::TimestampMicros(_) => todo!(),
-        Value::LocalTimestampMillis(_) => todo!(),
-        Value::LocalTimestampMicros(_) => todo!(),
-        Value::Duration(_) => todo!(),
-        Value::Uuid(_) => todo!(),
+        Value::Duration(_) => {
+            let delta = PyDelta::new(py, 0, 0, 0, false)?;
+            Ok(delta.into_py(py))
+        }
+        Value::Uuid(u) => Ok(u.as_bytes().into_py(py)),
     }
 }
 
@@ -83,16 +87,15 @@ impl Avro {
             Reader::new(input)
         };
 
-        if reader.is_err() {
-            return Err(PyValueError::new_err("Error"));
+        if let Err(err) = reader {
+            Err(PyValueError::new_err(format!("Error: {}", err)))
+        } else {
+            let res: Vec<PyObject> = reader
+                .unwrap()
+                .map(|read| to_pyobject(py, read.unwrap()).unwrap())
+                .collect();
+            Ok(res)
         }
-
-        let res = reader
-            .unwrap()
-            .into_iter()
-            .map(|read| to_pyobject(py, read.unwrap()).unwrap())
-            .collect::<Vec<PyObject>>();
-        Ok(res)
     }
 }
 

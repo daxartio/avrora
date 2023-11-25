@@ -1,34 +1,118 @@
+import io
+import json
+
+import avro.datafile
+import avro.io
+import avro.schema
+import pytest
+
 from avrora._avrora import Avro
 
 
-def test_idle():
-    schema = """
-    {
-        "type": "record",
-        "name": "test",
-        "fields": [
-            {"name": "a", "type": "long", "default": 42},
-            {"name": "b", "type": "string"}
-        ]
-    }
-    """
+@pytest.fixture()
+def raw_schema(schema):
+    return json.dumps(schema)
 
-    # fmt: off
-    data = bytes([
-        79, 98, 106, 1, 4, 22, 97, 118, 114, 111, 46, 115, 99, 104, 101, 109, 97, 222,
-        1, 123, 34, 116, 121, 112, 101, 34, 58, 34, 114, 101, 99, 111, 114, 100, 34, 44,
-        34, 110, 97, 109, 101, 34, 58, 34, 116, 101, 115, 116, 34, 44, 34, 102, 105,
-        101, 108, 100, 115, 34, 58, 91, 123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 34,
-        44, 34, 116, 121, 112, 101, 34, 58, 34, 108, 111, 110, 103, 34, 44, 34, 100,
-        101, 102, 97, 117, 108, 116, 34, 58, 52, 50, 125, 44, 123, 34, 110, 97, 109,
-        101, 34, 58, 34, 98, 34, 44, 34, 116, 121, 112, 101, 34, 58, 34, 115, 116, 114,
-        105, 110, 103, 34, 125, 93, 125, 20, 97, 118, 114, 111, 46, 99, 111, 100, 101,
-        99, 14, 100, 101, 102, 108, 97, 116, 101, 0, 4, 9, 246, 238, 211, 144, 123, 129,
-        116, 201, 133, 2, 99, 244, 227, 0, 2, 36, 5, 192, 33, 1, 0, 0, 0, 131, 48, 247,
-        72, 143, 132, 165, 191, 99, 31, 26, 4, 9, 246, 238, 211, 144, 123, 129, 116,
-        201, 133, 2, 99, 244, 227, 0,
-    ])
-    # fmt: on
-    avro = Avro.with_schema(schema)
-    result = avro.parse(data)
-    print(result)
+
+@pytest.fixture()
+def schema():
+    return {
+        "namespace": "example.avro",
+        "type": "record",
+        "name": "Example",
+        "fields": [
+            {"name": "null_field", "type": "null"},
+            {"name": "boolean_field", "type": "boolean"},
+            {"name": "int_field", "type": "int"},
+            {"name": "long_field", "type": "long"},
+            {"name": "float_field", "type": "float"},
+            {"name": "double_field", "type": "double"},
+            {"name": "string_field", "type": "string"},
+            {"name": "bytes_field", "type": "bytes"},
+            {"name": "array_field", "type": {"type": "array", "items": "int"}},
+            {"name": "map_field", "type": {"type": "map", "values": "string"}},
+            {
+                "name": "enum_field",
+                "type": {
+                    "type": "enum",
+                    "name": "Color",
+                    "symbols": ["RED", "GREEN", "BLUE"],
+                },
+            },
+            {"name": "fixed_field", "type": {"type": "fixed", "name": "Id", "size": 4}},
+            {"name": "union_field", "type": ["null", "string", "int"]},
+            {
+                "name": "record_field",
+                "type": {
+                    "type": "record",
+                    "name": "Address",
+                    "fields": [
+                        {"name": "street", "type": "string"},
+                        {"name": "city", "type": "string"},
+                    ],
+                },
+            },
+        ],
+    }
+
+
+@pytest.fixture()
+def example():
+    return {
+        "null_field": None,
+        "boolean_field": True,
+        "int_field": 42,
+        "long_field": 1234567890,
+        "float_field": 3.14,
+        "double_field": 2.71828,
+        "string_field": "Hello, Avro!",
+        "bytes_field": b"SGVsbG8sIEF2cm8h",
+        "array_field": [1, 2, 3, 4, 5],
+        "map_field": {"key1": "value1", "key2": "value2"},
+        "enum_field": "GREEN",
+        "fixed_field": b"abcd",
+        "union_field": "string value",
+        "record_field": {"street": "123 Main St", "city": "Exampleville"},
+    }
+
+
+@pytest.fixture()
+def expected():
+    return [
+        {
+            "null_field": None,
+            "boolean_field": True,
+            "int_field": 42,
+            "long_field": 1234567890,
+            "float_field": 3.140000104904175,
+            "double_field": 2.71828,
+            "string_field": "Hello, Avro!",
+            # fmt: off
+            "bytes_field": [
+                83, 71, 86, 115, 98, 71, 56, 115,
+                73, 69, 70, 50, 99, 109, 56, 104,
+            ],
+            # fmt: on
+            "array_field": [1, 2, 3, 4, 5],
+            "map_field": {"key2": "value2", "key1": "value1"},
+            "enum_field": "GREEN",
+            "fixed_field": [97, 98, 99, 100],
+            "union_field": "string value",
+            "record_field": {"street": "123 Main St", "city": "Exampleville"},
+        },
+    ]
+
+
+def test_avro(raw_schema, example, expected):
+    avro_schema = avro.schema.parse(raw_schema)
+    buffer = io.BytesIO()
+
+    writer = avro.datafile.DataFileWriter(buffer, avro.io.DatumWriter(), avro_schema)
+    writer.append(example)
+    writer.flush()
+
+    avrora = Avro.with_schema(raw_schema)
+    result = avrora.parse(buffer.getvalue())
+    buffer.close()
+
+    assert result == expected

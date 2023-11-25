@@ -2,38 +2,94 @@ import io
 import json
 from typing import Any
 
-import avrora
+import avro.schema
 import fastavro
-from avro.datafile import DataFileReader
-from avro.io import DatumReader
+import pytest
+from avro.datafile import DataFileReader, DataFileWriter
+from avro.io import DatumReader, DatumWriter
 
-raw_schema = """
-{
-    "type": "record",
-    "name": "test",
-    "fields": [
-        {"name": "a", "type": "long", "default": 42},
-        {"name": "b", "type": "string"}
-    ]
-}
-"""
+import avrora
 
 
-# fmt: off
-data = bytes([
-    79, 98, 106, 1, 4, 22, 97, 118, 114, 111, 46, 115, 99, 104, 101, 109, 97, 222, 1, 123,
-    34, 116, 121, 112, 101, 34, 58, 34, 114, 101, 99, 111, 114, 100, 34, 44, 34, 110, 97,
-    109, 101, 34, 58, 34, 116, 101, 115, 116, 34, 44, 34, 102, 105, 101, 108, 100, 115, 34,
-    58, 91, 123, 34, 110, 97, 109, 101, 34, 58, 34, 97, 34, 44, 34, 116, 121, 112, 101, 34,
-    58, 34, 108, 111, 110, 103, 34, 44, 34, 100, 101, 102, 97, 117, 108, 116, 34, 58, 52,
-    50, 125, 44, 123, 34, 110, 97, 109, 101, 34, 58, 34, 98, 34, 44, 34, 116, 121, 112,
-    101, 34, 58, 34, 115, 116, 114, 105, 110, 103, 34, 125, 93, 125, 20, 97, 118, 114, 111,
-    46, 99, 111, 100, 101, 99, 14, 100, 101, 102, 108, 97, 116, 101, 0, 4, 9, 246, 238,
-    211, 144, 123, 129, 116, 201, 133, 2, 99, 244, 227, 0, 2, 36, 5, 192, 33, 1, 0, 0, 0,
-    131, 48, 247, 72, 143, 132, 165, 191, 99, 31, 26, 4, 9, 246, 238, 211, 144, 123, 129,
-    116, 201, 133, 2, 99, 244, 227, 0,
-])
-# fmt: on
+@pytest.fixture()
+def raw_schema(schema: Any) -> str:
+    return json.dumps(schema)
+
+
+@pytest.fixture()
+def schema() -> Any:
+    return {
+        "namespace": "example.avro",
+        "type": "record",
+        "name": "Example",
+        "fields": [
+            {"name": "null_field", "type": "null"},
+            {"name": "boolean_field", "type": "boolean"},
+            {"name": "int_field", "type": "int"},
+            {"name": "long_field", "type": "long"},
+            {"name": "float_field", "type": "float"},
+            {"name": "double_field", "type": "double"},
+            {"name": "string_field", "type": "string"},
+            {"name": "bytes_field", "type": "bytes"},
+            {"name": "array_field", "type": {"type": "array", "items": "int"}},
+            {"name": "map_field", "type": {"type": "map", "values": "string"}},
+            {
+                "name": "enum_field",
+                "type": {
+                    "type": "enum",
+                    "name": "Color",
+                    "symbols": ["RED", "GREEN", "BLUE"],
+                },
+            },
+            {"name": "fixed_field", "type": {"type": "fixed", "name": "Id", "size": 4}},
+            {"name": "union_field", "type": ["null", "string", "int"]},
+            {
+                "name": "record_field",
+                "type": {
+                    "type": "record",
+                    "name": "Address",
+                    "fields": [
+                        {"name": "street", "type": "string"},
+                        {"name": "city", "type": "string"},
+                    ],
+                },
+            },
+        ],
+    }
+
+
+@pytest.fixture()
+def example() -> Any:
+    return {
+        "null_field": None,
+        "boolean_field": True,
+        "int_field": 42,
+        "long_field": 1234567890,
+        "float_field": 3.14,
+        "double_field": 2.71828,
+        "string_field": "Hello, Avro!",
+        "bytes_field": b"SGVsbG8sIEF2cm8h",
+        "array_field": [1, 2, 3, 4, 5],
+        "map_field": {"key1": "value1", "key2": "value2"},
+        "enum_field": "GREEN",
+        "fixed_field": b"abcd",
+        "union_field": "string value",
+        "record_field": {"street": "123 Main St", "city": "Exampleville"},
+    }
+
+
+@pytest.fixture()
+def data(example: Any, raw_schema: str) -> bytes:
+    avro_schema = avro.schema.parse(raw_schema)
+    buffer = io.BytesIO()
+
+    writer = DataFileWriter(buffer, DatumWriter(), avro_schema)
+    writer.append(example)
+    writer.flush()
+
+    val = buffer.getvalue()
+    buffer.close()
+    return val
 
 
 def avrora_parse(parser, d):
@@ -59,24 +115,24 @@ def fastavro_parse_with_schema(d, schema):
     return next(avro_reader)
 
 
-def test_avrora(benchmark: Any) -> None:
+def test_avrora(benchmark: Any, data: bytes) -> None:
     parser = avrora.Avro()
     benchmark(avrora_parse, parser, data)
 
 
-def test_avrora_with_schema(benchmark: Any) -> None:
+def test_avrora_with_schema(benchmark: Any, raw_schema: str, data: bytes) -> None:
     parser = avrora.Avro.with_schema(raw_schema)
     benchmark(avrora_parse_with_schema, parser, data)
 
 
-def test_avro(benchmark: Any) -> None:
+def test_avro(benchmark: Any, data: bytes) -> None:
     benchmark(avro_parse, data)
 
 
-def test_fastavro(benchmark: Any) -> None:
+def test_fastavro(benchmark: Any, data: bytes) -> None:
     benchmark(fastavro_parse, data)
 
 
-def test_fastavro_with_schema(benchmark: Any) -> None:
+def test_fastavro_with_schema(benchmark: Any, raw_schema: str, data: bytes) -> None:
     schema = fastavro.parse_schema(json.loads(raw_schema))
     benchmark(fastavro_parse_with_schema, data, schema)
