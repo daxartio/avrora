@@ -88,15 +88,12 @@ def expected():
             "double_field": 2.71828,
             "string_field": "Hello, Avro!",
             # fmt: off
-            "bytes_field": [
-                83, 71, 86, 115, 98, 71, 56, 115,
-                73, 69, 70, 50, 99, 109, 56, 104,
-            ],
+            "bytes_field": b'SGVsbG8sIEF2cm8h',
             # fmt: on
             "array_field": [1, 2, 3, 4, 5],
             "map_field": {"key2": "value2", "key1": "value1"},
             "enum_field": "GREEN",
-            "fixed_field": [97, 98, 99, 100],
+            "fixed_field": b"abcd",
             "union_field": "string value",
             "record_field": {"street": "123 Main St", "city": "Exampleville"},
         },

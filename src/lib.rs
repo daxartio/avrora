@@ -7,54 +7,58 @@ use pyo3::types::PyDelta;
 use pyo3::types::PyDict;
 use pyo3::types::PyList;
 use pyo3::types::PyType;
+use pyo3::BoundObject;
 
 fn to_pyobject(py: Python, datum: Value) -> PyResult<PyObject> {
     match datum {
         Value::Null => Ok(py.None()),
-        Value::Boolean(b) => Ok(b.into_py(py)),
-        Value::Int(n) => Ok(n.into_py(py)),
-        Value::Long(n) => Ok(n.into_py(py)),
-        Value::Float(x) => Ok(x.into_py(py)),
-        Value::Double(x) => Ok(x.into_py(py)),
-        Value::Bytes(bytes) => Ok(bytes.into_py(py)),
-        Value::String(string) => Ok(string.into_py(py)),
-        Value::Fixed(_, bytes) => Ok(bytes.into_py(py)),
-        Value::Enum(_, symbol) => Ok(symbol.into_py(py)),
+        Value::Boolean(b) => Ok(b.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Int(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Long(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Float(x) => Ok(x.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Double(x) => Ok(x.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Bytes(bytes) => Ok(bytes.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::String(string) => Ok(string.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Fixed(_, bytes) => Ok(bytes.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::Enum(_, symbol) => Ok(symbol.into_pyobject(py).unwrap().into_any().unbind()),
         Value::Union(_, item) => to_pyobject(py, *item),
         Value::Array(items) => {
             let list = PyList::empty(py);
             for item in items {
                 list.append(to_pyobject(py, item)?)?;
             }
-            Ok(list.into_py(py))
+            Ok(list.into_pyobject(py).unwrap().into_any().unbind())
         }
         Value::Map(items) => {
             let dict = PyDict::new(py);
             for (key, value) in items {
                 dict.set_item(key, to_pyobject(py, value)?)?;
             }
-            Ok(dict.into_py(py))
+            Ok(dict.into_pyobject(py).unwrap().into_any().unbind())
         }
         Value::Record(fields) => {
             let dict = PyDict::new(py);
             for (name, value) in fields {
                 dict.set_item(name, to_pyobject(py, value)?)?;
             }
-            Ok(dict.into_py(py))
+            Ok(dict.into_pyobject(py).unwrap().into_any().unbind())
         }
-        Value::Date(date) => Ok(date.into_py(py)),
-        Value::TimeMillis(n) => Ok(n.into_py(py)),
-        Value::TimeMicros(n) => Ok(n.into_py(py)),
-        Value::TimestampMillis(n) => Ok(n.into_py(py)),
-        Value::TimestampMicros(n) => Ok(n.into_py(py)),
-        Value::LocalTimestampMillis(n) => Ok(n.into_py(py)),
-        Value::LocalTimestampMicros(n) => Ok(n.into_py(py)),
+        Value::Date(date) => Ok(date.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::TimeMillis(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::TimeMicros(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::TimestampMillis(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::TimestampMicros(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::LocalTimestampMillis(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
+        Value::LocalTimestampMicros(n) => Ok(n.into_pyobject(py).unwrap().into_any().unbind()),
         Value::Decimal(_) => todo!(),
         Value::Duration(_) => {
             let delta = PyDelta::new(py, 0, 0, 0, false)?;
-            Ok(delta.into_py(py))
+            Ok(delta.into_pyobject(py).unwrap().into_any().unbind())
         }
-        Value::Uuid(u) => Ok(u.as_bytes().into_py(py)),
+        Value::Uuid(u) => Ok(u.as_bytes().into_pyobject(py).unwrap().into_any().unbind()),
+        Value::BigDecimal(_big_decimal) => todo!(),
+        Value::TimestampNanos(_) => todo!(),
+        Value::LocalTimestampNanos(_) => todo!(),
     }
 }
 
@@ -71,7 +75,7 @@ impl Avro {
     }
 
     #[classmethod]
-    fn with_schema(_cls: &PyType, raw_schema: &str) -> PyResult<Self> {
+    fn with_schema(_cls: &Bound<'_, PyType>, raw_schema: &str) -> PyResult<Self> {
         let Ok(schema) = Schema::parse_str(raw_schema) else {
             return Err(PyValueError::new_err("Invalid schema"));
         };
@@ -101,7 +105,7 @@ impl Avro {
 
 /// avrora package.
 #[pymodule]
-fn _avrora(_py: Python, m: &PyModule) -> PyResult<()> {
+fn _avrora(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Avro>()?;
     Ok(())
 }

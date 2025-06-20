@@ -57,14 +57,12 @@ test-report:  ## Report testing
 .PHONY: lint
 lint:  ## Check code
 	$(POETRY_RUN) ruff $(CODE)
-	$(POETRY_RUN) black --check $(CODE)
 	$(POETRY_RUN) pytest --dead-fixtures --dup-fixtures
 	$(POETRY_RUN) mypy $(CODE)
 
 .PHONY: format
 format:  ## Formatting code
 	$(POETRY_RUN) ruff --fix-only $(CODE)
-	$(POETRY_RUN) black $(CODE)
 
 .PHONY: bump
 bump:  ## Bump version (commit and tag)

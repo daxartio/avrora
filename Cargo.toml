@@ -9,5 +9,5 @@ name = "avrora"
 crate-type = ["cdylib"]
 
 [dependencies]
-apache-avro = "0.16.0"
-pyo3 = "0.20.0"
+apache-avro = "0.17.0"
+pyo3 = "0.23.5"
